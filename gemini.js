@@ -5,7 +5,7 @@
 export class GeminiClient {
     constructor(apiKey) {
         this.apiKey = apiKey;
-        // User requested 2.5 (It's late 2025!)
+        // Gemini 2.5 is the 2025 standard.
         this.modelParams = "gemini-2.5-flash";
         this.baseUrl = `https://generativelanguage.googleapis.com/v1beta/models/${this.modelParams}:generateContent`;
 
@@ -14,9 +14,33 @@ export class GeminiClient {
         this.usedCities = stored ? new Set(JSON.parse(stored)) : new Set();
     }
 
-    // AI now only handles the "Creative" parts: History, Trivia, and People.
-    // Deterministic data (Flags, Coords, Stats) is handled locally in script.js to save tokens.
+    /**
+     * Helper to robustly extract JSON from AI text
+     */
+    extractJSON(text) {
+        try {
+            // First try direct parse (if AI was perfect)
+            return JSON.parse(text);
+        } catch (e) {
+            // Try to find the first '{' and last '}'
+            const start = text.indexOf('{');
+            const end = text.lastIndexOf('}');
+            if (start !== -1 && end !== -1) {
+                const jsonStr = text.substring(start, end + 1);
+                try {
+                    return JSON.parse(jsonStr);
+                } catch (e2) {
+                    console.error("Sub-string JSON parse failed", e2, jsonStr);
+                    throw e2;
+                }
+            }
+            throw new Error("No JSON found in response");
+        }
+    }
+
     async enrichGameData(country, city) {
+        if (!this.apiKey) throw new Error("API Key Missing");
+
         const prompt = `
             Context: The user is playing a geography game about ${city}, ${country}.
             
@@ -24,19 +48,15 @@ export class GeminiClient {
             
             Return ONLY valid JSON with this structure:
             {
-                "historical_fact": "A fascinating, single-sentence historical fact about ${city} (or ${country} if city is obscure).",
+                "historical_fact": "A fascinating, single-sentence historical fact.",
                 "person": {
-                    "name": "Name of a famous person from or associated with ${city} or ${country}",
-                    "role": "e.g. Physicist / Musician",
-                    "fact": "Did you know? [Insert a very specific, surprising, less known fact about them].",
-                    "bio": "A short 2 sentence bio."
+                    "name": "Name",
+                    "role": "Role",
+                    "fact": "Did you know? [Fact]",
+                    "bio": "Bio"
                 },
-                "history": "A very brief (2-3 sentences) historical summary of the city/country context."
+                "history": "Brief summary"
             }
-            
-            IMPORTANT:
-            - 'fact' must start with "Did you know?".
-            - Make the content educational and interesting.
         `;
 
         try {
@@ -49,10 +69,23 @@ export class GeminiClient {
                 })
             });
 
-            if (!response.ok) throw new Error('Enrichment API Request Failed');
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                console.error("Gemini API Error:", errData);
+
+                // Special hint if model not found
+                if (response.status === 404) {
+                    this.listAvailableModels();
+                }
+                throw new Error(`AI API Error (${response.status})`);
+            }
 
             const data = await response.json();
-            return JSON.parse(data.candidates[0].content.parts[0].text);
+            if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
+                throw new Error('Invalid AI response structure');
+            }
+
+            return this.extractJSON(data.candidates[0].content.parts[0].text);
         } catch (error) {
             console.error("Gemini Enrichment Error:", error);
             throw error;
@@ -65,7 +98,7 @@ export class GeminiClient {
         if (type === 'MORE_INFO') {
             prompt = `Tell me 3 more specific, fascinating, and lesser-known facts about ${contextData.person.name} (${contextData.person.role}) from ${contextData.city.name}. Return as valid JSON: { "facts": ["fact1", "fact2", "fact3"] }`;
         } else if (type === 'OTHER_PERSON') {
-            prompt = `Name another DIFFERENT famous person from ${contextData.city.name}, ${country} (NOT ${contextData.person.name}). Return valid JSON: { "name": "Name", "role": "Role", "fact": "Did you know? [Fact]", "bio": "Short bio" }`;
+            prompt = `Name another DIFFERENT famous person from ${contextData.city.name}, ${contextData.country} (NOT ${contextData.person.name}). Return valid JSON: { "name": "Name", "role": "Role", "fact": "Did you know? [Fact]", "bio": "Short bio" }`;
         } else if (type === 'HISTORY_DEEP_DIVE') {
             prompt = `Provide a detailed, interesting, 5-point historical summary of ${contextData.country}, strictly focusing on lesser known events or specific interesting eras. Return as valid JSON: { "points": ["point1", "point2", "point3", "point4", "point5"] }`;
         }
@@ -80,12 +113,23 @@ export class GeminiClient {
                 })
             });
 
-            if (!response.ok) throw new Error('API Request Failed');
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                console.error("Follow-up API Error:", errData);
+                if (response.status === 404) {
+                    this.listAvailableModels();
+                }
+                throw new Error(`AI API Error (${response.status})`);
+            }
 
             const data = await response.json();
-            return JSON.parse(data.candidates[0].content.parts[0].text);
+            if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
+                throw new Error('Invalid AI response structure');
+            }
+
+            return this.extractJSON(data.candidates[0].content.parts[0].text);
         } catch (error) {
-            console.error(error);
+            console.error("Follow-up logic failure:", error);
             throw error;
         }
     }

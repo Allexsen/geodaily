@@ -802,17 +802,26 @@ class GeoDaily {
                     hintParam.innerHTML = `<i class="fa-solid fa-compass"></i> It is generally towards the <strong>${dir}</strong> from the screen center.`;
                     p.querySelector('#city-hint-container').appendChild(hintParam);
 
-                    // Add visual hint circle
+                    // Add visual hint circle (randomized center for less obviousness)
+                    const [lat, lng] = this.currentData.city.coordinates;
+                    const r = this.currentData.city.hint_radius;
+                    const angle = Math.PI * 2 * Math.random();
+                    const dist = Math.random() * (r * 0.4); // Shift up to 40% of radius
+
+                    const latOffset = (dist * Math.cos(angle)) / 111320;
+                    const lngOffset = (dist * Math.sin(angle)) / (111320 * Math.cos(lat * Math.PI / 180));
+                    const hintCenter = [lat + latOffset, lng + lngOffset];
+
                     if (this.hintCircle) this.map.removeLayer(this.hintCircle);
-                    this.hintCircle = L.circle(this.currentData.city.coordinates, {
-                        radius: this.currentData.city.hint_radius,
+                    this.hintCircle = L.circle(hintCenter, {
+                        radius: r,
                         color: '#fbbf24',
                         fillColor: '#fbbf24',
                         fillOpacity: 0.15,
                         dashArray: '5, 5',
                         weight: 1
                     }).addTo(this.map);
-                    this.map.flyTo(this.currentData.city.coordinates, 8);
+                    this.map.flyTo(hintCenter, 8);
                 };
                 break;
 
@@ -891,7 +900,7 @@ class GeoDaily {
                         });
                         btn.remove(); // Remove button after use
                     } catch (err) {
-                        this.showToast('Failed.', 'error');
+                        this.showToast(err.message || 'Connection failed.', 'error');
                         btn.innerHTML = originalText;
                         btn.disabled = false;
                     }
@@ -906,7 +915,7 @@ class GeoDaily {
                         this.currentData.person = newPerson;
                         this.renderPhase(); // Re-render this phase with new person
                     } catch (err) {
-                        this.showToast('Failed.', 'error');
+                        this.showToast(err.message || 'Person lookup failed.', 'error');
                         btn.innerHTML = '<i class="fa-solid fa-user-plus"></i> someone else';
                     }
                 };
@@ -938,7 +947,7 @@ class GeoDaily {
                         area.appendChild(ul);
                         btn.remove();
                     } catch (err) {
-                        this.showToast('Failed.', 'error');
+                        this.showToast(err.message || 'History lookup failed.', 'error');
                         btn.innerHTML = 'retry';
                     }
                 };
