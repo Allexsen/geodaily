@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self';
+        script-src 'self' 'unsafe-inline' https://unpkg.com https://cdnjs.cloudflare.com;
+        style-src 'self' 'unsafe-inline' https://unpkg.com https://cdnjs.cloudflare.com https://fonts.googleapis.com;
+        img-src 'self' data: https://*.basemaps.cartocdn.com https://flagcdn.com https://*.openstreetmap.org https://unpkg.com;
+        connect-src 'self' https://generativelanguage.googleapis.com https://nominatim.openstreetmap.org https://raw.githubusercontent.com;
+        font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com;
+    ">
+    <title>GeoDaily</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div id="app">
+        <!-- Settings Modal (API Key) -->
+        <div id="settings-modal" class="modal active">
+            <div class="modal-content glass-panel">
+                <h2><i class="fa-solid fa-earth-americas"></i> GeoDaily Setup</h2>
+                <p>Welcome to your daily dose of random geography.</p>
+                <div class="input-group">
+                    <label for="api-key">Gemini API Key</label>
+                    <input type="password" id="api-key" placeholder="Enter your key here...">
+                    <small>Your key is stored locally in your browser.</small>
+                </div>
+                <button id="save-key-btn" class="btn-primary">Connect & Play</button>
+                <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center;">
+                    <button id="demo-btn" class="btn-secondary" style="font-size:0.9rem;">Play Demo (No AI)</button>
+                    <a href="https://aistudio.google.com/app/apikey" target="_blank"
+                        style="color:#a855f7; font-size:0.8rem; text-decoration:none;">Get Free Gemini Key <i
+                            class="fa-solid fa-arrow-up-right-from-square"></i></a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Game UI -->
+        <div id="game-ui" class="hidden">
+            <div id="top-bar" class="glass-panel">
+                <div class="logo">GeoDaily</div>
+                <div class="controls" style="display:flex; gap:10px; align-items:center;">
+                    <button id="theme-toggle" class="icon-btn" title="Toggle Dark/Light Mode"><i
+                            class="fa-solid fa-moon"></i></button>
+                    <select id="difficulty-select" class="nav-select">
+                        <option value="easy">Easy</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="hard">Hard</option>
+                        <option value="extreme">Extreme</option>
+                    </select>
+                    <button id="settings-btn" class="icon-btn" title="Settings"><i
+                            class="fa-solid fa-gear"></i></button>
+
+                    <div id="game-controls" style="display:flex; gap:5px;">
+                        <button id="next-btn" class="btn-primary" title="Skip this destination and start a new one">New
+                            Journey <i class="fa-solid fa-plane"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- The main content area that floats over the map -->
+            <div id="content-overlay" class="glass-panel">
+                <div id="phase-content">
+                    <!-- Dynamic content goes here -->
+                    <div class="loader">
+                        <i class="fa-solid fa-circle-notch fa-spin"></i> Loading destination...
+                    </div>
+                </div>
+            </div>
+
+            <!-- Toast Notifications -->
+            <div id="toast-container"></div>
+        </div>
+
+        <!-- Map Container -->
+        <div id="map"></div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <script>
+        if (window.location.protocol === 'file:') {
+            alert("⚠️ Browser Security Restriction\n\nThis app uses ES6 Modules (import/export), which browsers block when opening files directly (file://).\n\nPlease run this via a local server.\nExample: 'python -m http.server' or VS Code 'Live Server'.");
+
+            // Show valid error on screen too
+            document.body.innerHTML = `
+                <div style="color:white; text-align:center; padding:50px; font-family:sans-serif; background:#0f172a; height:100vh;">
+                    <h1 style="color:#ef4444">⚠️ Local Security Restriction</h1>
+                    <p>Browsers block ES Modules (<code>import/export</code>) when opening HTML files directly.</p>
+                    <p style="margin-top:20px; color:#cbd5e1;">To fix this, please run a local server:</p>
+                    <pre style="background:#334155; display:inline-block; padding:15px; border-radius:8px; margin-top:10px;">python -m http.server</pre>
+                    <p style="margin-top:20px;">Then open: <a href="http://localhost:8000" style="color:#38bdf8">http://localhost:8000</a></p>
+                </div>
+            `;
+        }
+    </script>
+    <script type="module" src="script.js"></script>
+</body>
+
+</html>
